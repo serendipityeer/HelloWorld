@@ -1,0 +1,107 @@
+clc;
+clear;
+close all;
+
+%% 1-优化问题的定义
+fobj =@(x) Sphere(x);        % 目标函数
+dim = 40;                    % 设计变量维度
+x_LB= -10*ones(1, dim);      % 设计变量下界
+x_UB = 10*ones(1,dim);       % 设计变量上界
+
+%% 2-PSO算法参数设置
+Max_Iter = 1000;            %最大迭代次数
+nPop = 2 * dim;             %种群规模
+w_ini = 0.9;                %
+w_end = 0.4;
+c1 = 2;
+c2 = 2;
+Vmax = 0.1*(x_UB - x_LB);   %最大速度
+Vmin = -Vmax;               %最小速度
+phi1 = 2.05;
+phi2 = phi1;
+phi = phi2 + phi1;
+lambda = 2/abs(2 - phi - sqrt(phi^2 - 4*phi));
+%% 3-PSO算法初始化
+Velocity = zeros(nPop, dim);        %开辟速度存储空间
+Position = zeros(nPop, dim);        %开辟位置存储空间
+Fitness = zeros(nPop,dim);          %开辟适应度值存储空间
+pBest = zeros(nPop, dim);           %开辟个体最优位置存储空间
+pBest_Fitness = zeros(nPop, 1);    %开辟个体最优适应度值存储空间
+
+for i = 1:nPop
+    Velocity(i, :) = Vmin + rand(1, dim).*(Vmax - Vmin);
+    Position(i, :) = x_LB + rand(1, dim).*(x_UB - x_LB);
+    Fitness(i) = fobj(Position(i, :));
+    pBest(i, :) = Position(i, :);
+    pBest_Fitness(i) = Fitness(i);
+end
+
+[gBest_Fitness, idx] = min(pBest_Fitness);  % 找到gBest位置和对应索引
+gBest = pBest(idx, :);                      % gBest
+
+%% 4-PSO算法主循环部分
+for iter = 1 : Max_Iter
+    % w = w_ini - (w_ini - w_end)*iter/Max_Iter;
+
+    for i = 1 : nPop
+        for j = 1 : dim
+            %Velocity(i, j) = w*Velocity(i ,j) + ...
+            %    c1*rand*(pBest(i ,j) - Position(i ,j)) + ...
+            %    c2*rand*(gBest(j) - Position(i ,j));    %速度更新
+            Velocity(i, j) = lambda*Velocity(i ,j) + ...
+                c1*rand*(pBest(i ,j) - Position(i ,j)) + ...
+                c2*rand*(gBest(j) - Position(i ,j));
+            % 对速度售价约束
+            if Velocity(i, j) > Vmax(j)
+                Velocity(i, j) = Vmax(j);
+            end
+
+            if Velocity(i, j) < Vmin(j)
+                Velocity(i, j) = Vmin(j);
+            end
+
+            Position(i, j) = Position(i, j) + Velocity(i, j );
+
+            if Position(i ,j) > x_UB
+                Position(i, j) = x_UB(j);
+            end
+
+            if Position(i ,j) < x_LB
+                Position(i, j) = x_LB(j);
+            end
+
+        end
+
+        Fitness(i) = fobj(Position(i, :));  % 计算更新后粒子适应度值
+
+        % 更新个体最优适应度值和位置
+        if Fitness(i) < pBest_Fitness(i)
+            pBest_Fitness(i) = Fitness(i)
+            pBest(i, :) = Position(i, :);
+        end
+
+        % 更新gBest
+        if Fitness(i) < gBest_Fitness
+            gBest_Fitness = Fitness(i)
+            gBest = Position(i, :);
+        end
+
+    end
+
+    Convergence_Curve(iter) = gBest_Fitness;
+    disp(['迭代次数 = ', num2str(iter), '最佳适应度值 = ' num2str(gBest_Fitness)])
+end
+
+
+%% 5-优化结果后处理
+figure;
+plot(Convergence_Curve, 'Linewidth', 2);
+xlabel('迭代次数');
+ylabel('最佳适应度值');
+
+
+% 目标函数部分（Matlab中可另建函数，不必写在最下方）
+function y = Sphere(x)
+    x1 = x.^2;
+    y = sum(x1);
+end
